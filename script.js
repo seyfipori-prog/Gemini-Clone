@@ -9,8 +9,6 @@ const clearChatButton = document.getElementById("deleteButton");
 let currentUserMessage = null;
 let isGeneratingResponse = false;
 
-import config from "./config.js";
-
 // Initialize highlight.js with common languages
 hljs.configure({
     languages: ['javascript', 'python', 'bash', 'typescript', 'json', 'html', 'css']
@@ -19,7 +17,8 @@ hljs.configure({
 // Initialize highlight.js
 hljs.highlightAll();
 
-const API_REQUEST_URL = `${config.API_BASE_URL}/models/${config.MODEL_NAME}:generateContent?key=${config.GEMINI_API_KEY}`;
+// Requests go through the Worker, which holds the API key as a secret
+const API_REQUEST_URL = "/api/generate";
 
 // Load saved data from local storage
 const loadSavedChatHistory = () => {
@@ -181,6 +180,16 @@ const requestApiResponse = async (incomingMessageElement) => {
       apiResponse: responseData,
     });
     localStorage.setItem("saved-api-chats", JSON.stringify(savedConversations));
+
+    // Save conversation to D1 through the worker
+    fetch("/api/chats", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userMessage: currentUserMessage,
+        responseText: responseText,
+      }),
+    }).catch((err) => console.error("Failed to save chat:", err));
   } catch (error) {
     isGeneratingResponse = false;
     messageTextElement.innerText = error.message;
